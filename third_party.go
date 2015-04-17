@@ -200,7 +200,7 @@ func (v vcGit) commit() string {
 	return string(out)
 }
 
-// vcHg.update updates the given git dir to ref.
+// vcGit.update updates the given git dir to ref.
 func (v vcGit) update(ref string) error {
 	_, err := exec.Command("git",
 		"--work-tree="+path.Dir(string(v)),
