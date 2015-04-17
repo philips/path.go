@@ -118,7 +118,7 @@ func setupProject(pkg string) {
 }
 
 func getVc(root string) versionControl {
-	for _, v := range []string{".git", ".hg"} {
+	for _, v := range []string{".git", ".hg", ".bzr"} {
 		r := path.Join(root, v)
 		info, err := os.Stat(r)
 
@@ -132,6 +132,8 @@ func getVc(root string) versionControl {
 			return vcGit(r)
 		case ".hg":
 			return vcHg(r)
+		case ".bzr":
+			return vcBzr(r)
 		}
 	}
 	return new(vcNoop)
@@ -198,7 +200,7 @@ func (v vcGit) commit() string {
 	return string(out)
 }
 
-// vcHg.update updates the given git dir to ref.
+// vcGit.update updates the given git dir to ref.
 func (v vcGit) update(ref string) error {
 	_, err := exec.Command("git",
 		"--work-tree="+path.Dir(string(v)),
@@ -211,14 +213,42 @@ func (v vcGit) update(ref string) error {
 	return nil
 }
 
+type vcBzr string
+
+// vcBzr.commit returns the current revision for a given bazaar dir.
+func (v vcBzr) commit() string {
+	out, err := exec.Command("bzr",
+		"revno",
+		"--tree",
+		path.Dir(string(v)),
+	).Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// vcBzr.update updates the given bazaar dir to revision.
+func (v vcBzr) update(revision string) error {
+	_, err := exec.Command("bzr",
+		"update",
+		"-r"+revision,
+		path.Dir(string(v)),
+	).Output()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // commit grabs the commit id from hg or git as a string.
 func commit(dir string) string {
 	return getVc(dir).commit()
 }
 
-// removeVcs removes a .git or .hg directory from the given root if it exists.
+// removeVcs removes a .git, .hg or .bzr directory from the given root if it exists.
 func removeVcs(root string) (bool, string) {
-	for _, v := range []string{".git", ".hg"} {
+	for _, v := range []string{".git", ".hg", ".bzr"} {
 		r := path.Join(root, v)
 		info, err := os.Stat(r)
 
@@ -354,8 +384,8 @@ func bumpAll() {
 }
 
 var (
-	buildARCH   = flag.String("arch", runtime.GOARCH, "Architecture to build for.")
-	buildOS     = flag.String("os", runtime.GOOS, "Operating system to build for.")
+	buildARCH = flag.String("arch", runtime.GOARCH, "Architecture to build for.")
+	buildOS   = flag.String("os", runtime.GOOS, "Operating system to build for.")
 )
 
 func main() {
